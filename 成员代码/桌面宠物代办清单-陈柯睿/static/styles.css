@@ -1,0 +1,470 @@
+:root {
+  --bg-top: #f8f3df;
+  --bg-bottom: #f3d3b8;
+  --card: rgba(255, 252, 247, 0.8);
+  --card-border: rgba(104, 68, 36, 0.12);
+  --text: #3d2b1f;
+  --muted: #7e6652;
+  --accent: #d66853;
+  --accent-strong: #bf4d38;
+  --good: #5b9b72;
+  --shadow: 0 20px 50px rgba(92, 51, 28, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 30%),
+    linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.scene {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.glow {
+  position: absolute;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  filter: blur(10px);
+  opacity: 0.45;
+}
+
+.glow-left {
+  top: -8rem;
+  left: -9rem;
+  background: rgba(255, 243, 196, 0.9);
+}
+
+.glow-right {
+  right: -6rem;
+  bottom: -10rem;
+  background: rgba(245, 163, 130, 0.6);
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 20px 56px;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1.05fr 1fr;
+}
+
+.card {
+  backdrop-filter: blur(16px);
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  box-shadow: var(--shadow);
+}
+
+.pet-panel,
+.todo-panel {
+  padding: 24px;
+}
+
+.pet-header,
+.todo-top,
+.footer-bar,
+.status-line,
+.todo-form,
+.todo-item {
+  display: flex;
+  align-items: center;
+}
+
+.pet-header,
+.todo-top,
+.footer-bar {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+h2 {
+  font-size: clamp(1.6rem, 2vw, 2.2rem);
+}
+
+.pet-stage {
+  margin: 26px 0 20px;
+  min-height: 280px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 231, 214, 0.8)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(233, 207, 185, 0.18) 0 20px,
+      rgba(255, 255, 255, 0.18) 20px 40px
+    );
+}
+
+.pet {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: grid;
+  place-items: center;
+  transform-origin: center bottom;
+  animation: floaty 3s ease-in-out infinite;
+}
+
+.pet-body {
+  position: relative;
+  width: 180px;
+  height: 160px;
+  border-radius: 45% 45% 40% 40%;
+  background: linear-gradient(180deg, #fff7f0, #ffd2b4);
+  border: 4px solid rgba(111, 73, 47, 0.08);
+}
+
+.pet::before,
+.pet::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  width: 54px;
+  height: 68px;
+  background: linear-gradient(180deg, #ffe9d9, #ffc7a7);
+  border: 4px solid rgba(111, 73, 47, 0.08);
+  z-index: -1;
+}
+
+.pet::before {
+  left: 30px;
+  border-radius: 55% 45% 45% 55%;
+  transform: rotate(-22deg);
+}
+
+.pet::after {
+  right: 30px;
+  border-radius: 45% 55% 55% 45%;
+  transform: rotate(22deg);
+}
+
+.pet-shadow {
+  position: absolute;
+  bottom: 12px;
+  width: 120px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(80, 38, 17, 0.14);
+  filter: blur(6px);
+}
+
+.pet-face {
+  position: absolute;
+  inset: 0;
+}
+
+.eye {
+  position: absolute;
+  top: 62px;
+  width: 18px;
+  height: 26px;
+  border-radius: 50%;
+  background: #3b2921;
+  animation: blink 4.5s infinite;
+}
+
+.eye-left {
+  left: 56px;
+}
+
+.eye-right {
+  right: 56px;
+}
+
+.mouth {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  width: 34px;
+  height: 18px;
+  margin-left: -17px;
+  border-bottom: 4px solid #694637;
+  border-radius: 0 0 24px 24px;
+}
+
+.blush {
+  position: absolute;
+  bottom: 56px;
+  width: 28px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(230, 132, 112, 0.28);
+}
+
+.blush-left {
+  left: 28px;
+}
+
+.blush-right {
+  right: 28px;
+}
+
+.mood-happy {
+  transform: scale(1.04);
+}
+
+.mood-happy .mouth {
+  width: 42px;
+  margin-left: -21px;
+  height: 22px;
+}
+
+.mood-sleepy .eye {
+  height: 8px;
+  top: 70px;
+  border-radius: 10px;
+}
+
+.mood-excited {
+  animation: bouncey 0.7s ease-in-out infinite alternate;
+}
+
+.mood-excited .mouth {
+  border-bottom: none;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  border-radius: 50%;
+  background: #7b4a3d;
+}
+
+.pet-status {
+  display: grid;
+  gap: 12px;
+}
+
+.status-line {
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 248, 239, 0.8);
+  color: var(--muted);
+}
+
+.status-line strong {
+  color: var(--text);
+}
+
+.speech-bubble {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  line-height: 1.5;
+  background: linear-gradient(180deg, #fffdf9, #fff0e5);
+  box-shadow: inset 0 0 0 1px rgba(111, 73, 47, 0.06);
+}
+
+.counter {
+  min-width: 84px;
+  padding: 12px;
+  text-align: center;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 239, 224, 0.95), rgba(255, 215, 189, 0.9));
+}
+
+.counter span {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.counter small {
+  color: var(--muted);
+}
+
+.todo-form {
+  gap: 12px;
+  margin: 22px 0 18px;
+}
+
+.todo-form input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(109, 70, 45, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  outline: none;
+}
+
+.todo-form input:focus {
+  border-color: rgba(214, 104, 83, 0.55);
+  box-shadow: 0 0 0 4px rgba(214, 104, 83, 0.12);
+}
+
+button {
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+
+.todo-form button {
+  padding: 14px 18px;
+  color: white;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 10px 24px rgba(191, 77, 56, 0.28);
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.ghost-button {
+  padding: 12px 16px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(109, 70, 45, 0.1);
+}
+
+.todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.todo-item {
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 248, 239, 0.78);
+  border: 1px solid rgba(109, 70, 45, 0.06);
+}
+
+.todo-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.todo-main input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--good);
+}
+
+.todo-text {
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.todo-item.done .todo-text {
+  color: #9a8577;
+  text-decoration: line-through;
+}
+
+.todo-delete {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  background: rgba(214, 104, 83, 0.12);
+  color: var(--accent-strong);
+}
+
+.footer-bar {
+  margin-top: 18px;
+}
+
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-7px);
+  }
+}
+
+@keyframes blink {
+  0%,
+  45%,
+  100% {
+    transform: scaleY(1);
+  }
+
+  48%,
+  52% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes bouncey {
+  from {
+    transform: translateY(0) scale(1);
+  }
+
+  to {
+    transform: translateY(-10px) scale(1.05);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 20px 14px 28px;
+  }
+
+  .pet-panel,
+  .todo-panel {
+    padding: 18px;
+  }
+
+  .todo-form,
+  .pet-header,
+  .todo-top,
+  .footer-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .counter {
+    width: 100%;
+  }
+}
