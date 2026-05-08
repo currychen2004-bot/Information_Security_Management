@@ -38,6 +38,13 @@ TEST_PAYLOADS = [
     "1 AND SLEEP(2)",
 ]
 
+# SQL 注入扫描属于启发式安全检测：阈值越低越容易发现可疑点，但误报也会增加。
+# 因此这些值只用于定位需要人工复核的参数，不应直接作为漏洞定性的唯一依据。
+LENGTH_CHANGE_SUSPICIOUS_RATIO = 0.35
+TIME_DELAY_SUSPICIOUS_SECONDS = 1.2
+DEFAULT_USER_AGENT = "DVWA-SQLI-Scanner/0.1"
+DEFAULT_ACCEPT_HEADER = "text/html,application/xhtml+xml"
+
 
 def parse_cookie(cookie_text: str) -> Dict[str, str]:
     """把形如 a=1; b=2 的 cookie 字符串转成字典。"""
@@ -112,6 +119,19 @@ def build_url(base_url: str, params: Dict[str, List[str]]) -> str:
     return f"{base_url}?{urlencode(params, doseq=True)}"
 
 
+def build_default_headers(cookies: Dict[str, str]) -> Dict[str, str]:
+    """构造扫描请求头。Cookie 可能包含会话凭据，使用时应避免提交到公共仓库。"""
+    headers = {
+        # UA 不重要，主要是有些站会对空 UA 比较敏感
+        "User-Agent": DEFAULT_USER_AGENT,
+        "Accept": DEFAULT_ACCEPT_HEADER,
+    }
+    cookie_header = build_cookie_header(cookies)
+    if cookie_header:
+        headers["Cookie"] = cookie_header
+    return headers
+
+
 def scan_sqli(
     base_url: str,
     original_params: Dict[str, List[str]],
@@ -166,7 +186,7 @@ def scan_sqli(
             # 规则 2：响应长度变化异常
             length_gap = abs(len(result_body) - baseline_len)
             ratio = length_gap / max(1, baseline_len)
-            if ratio > 0.35:
+            if ratio > LENGTH_CHANGE_SUSPICIOUS_RATIO:
                 # 这里阈值是经验值，主要用来快速筛可疑点
                 findings.append(
                     {
@@ -180,7 +200,10 @@ def scan_sqli(
                 continue
 
             # 规则 3：简单时间延迟判断（针对 sleep payload）
-            if "sleep" in payload.lower() and (float(result["elapsed"]) - float(baseline["elapsed"])) > 1.2:
+            if (
+                "sleep" in payload.lower()
+                and (float(result["elapsed"]) - float(baseline["elapsed"])) > TIME_DELAY_SUSPICIOUS_SECONDS
+            ):
                 # 同一环境下明显变慢，通常就值得人工继续确认
                 findings.append(
                     {
@@ -230,14 +253,7 @@ def main() -> int:
         return 1
 
     cookies = parse_cookie(args.cookie)
-    headers = {
-        # UA 不重要，主要是有些站会对空 UA 比较敏感
-        "User-Agent": "DVWA-SQLI-Scanner/0.1",
-        "Accept": "text/html,application/xhtml+xml",
-    }
-    cookie_header = build_cookie_header(cookies)
-    if cookie_header:
-        headers["Cookie"] = cookie_header
+    headers = build_default_headers(cookies)
 
     print("=" * 60)
     print("DVWA SQL 注入简易扫描工具")
