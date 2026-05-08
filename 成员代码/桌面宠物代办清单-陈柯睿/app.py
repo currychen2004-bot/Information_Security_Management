@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import random
 from pathlib import Path
 from uuid import uuid4
@@ -11,6 +12,10 @@ from flask import Flask, jsonify, render_template, request
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 STATE_FILE = DATA_DIR / "state.json"
+TODO_TEXT_MAX_LENGTH = 80
+PET_GROWTH_PER_LEVEL = 5
+MANY_PENDING_TODO_THRESHOLD = 5
+DEBUG_ENV_VALUE = "1"
 
 PET_LEVELS = [
     "Lv.1 小团子",
@@ -90,7 +95,7 @@ def save_state(state: dict) -> None:
 
 
 def level_index(growth: int) -> int:
-    return min(growth // 5, len(PET_LEVELS) - 1)
+    return min(growth // PET_GROWTH_PER_LEVEL, len(PET_LEVELS) - 1)
 
 
 def build_payload(state: dict, mood: str | None = None, speech: str | None = None) -> dict:
@@ -100,7 +105,7 @@ def build_payload(state: dict, mood: str | None = None, speech: str | None = Non
     if mood is None:
         if todos and pending == 0:
             mood = "excited"
-        elif pending >= 5:
+        elif pending >= MANY_PENDING_TODO_THRESHOLD:
             mood = "sleepy"
         else:
             mood = "idle"
@@ -128,7 +133,7 @@ def build_payload(state: dict, mood: str | None = None, speech: str | None = Non
             "mood": mood,
             "moodLabel": mood_label,
             "levelLabel": PET_LEVELS[level_index(growth)],
-            "progressLabel": f"{growth % 5} / 5",
+            "progressLabel": f"{growth % PET_GROWTH_PER_LEVEL} / {PET_GROWTH_PER_LEVEL}",
             "speech": speech,
         },
     }
@@ -158,7 +163,7 @@ def create_todo():
         0,
         {
             "id": str(uuid4()),
-            "text": text[:80],
+            "text": text[:TODO_TEXT_MAX_LENGTH],
             "done": False,
         },
     )
@@ -235,4 +240,6 @@ def pet_pat():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Flask debug mode exposes an interactive debugger. Keep it off by default,
+    # and only enable it explicitly in a local development environment.
+    app.run(debug=os.getenv("FLASK_DEBUG") == DEBUG_ENV_VALUE)

@@ -3,3 +3,11 @@
 __pycache__/
 *.pyc
 .venv/
+.env
+.env.*
+*.key
+*.pem
+instance/
+*.sqlite
+*.sqlite3
+成员代码/桌面宠物代办清单-陈柯睿/data/*.local.json
