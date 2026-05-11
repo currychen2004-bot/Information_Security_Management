@@ -105,11 +105,16 @@ def dct_distortion_demo(img_path):
     img_f32 = np.float32(img)
     img_dct = cv2.dct(img_f32)
     
-    # 模拟失真：高频系数置零 (保留左上角300x300低频区域)
+    # 模拟失真：高频系数置零
+    # 保留左上角 LOW_FREQUENCY_SIZE × LOW_FREQUENCY_SIZE 的低频区域
+    LOW_FREQUENCY_SIZE = 300
+
     rows, cols = img_dct.shape
     img_dct_copy = img_dct.copy()
-    img_dct_copy[300:, :] = 0
-    img_dct_copy[:, 300:] = 0
+
+    # 去除高频信息，仅保留低频部分
+    img_dct_copy[LOW_FREQUENCY_SIZE:, :] = 0
+    img_dct_copy[:, LOW_FREQUENCY_SIZE:] = 0
     
     img_r = cv2.idct(img_dct_copy)
     img_r = np.clip(img_r, 0, 255).astype(np.uint8)
