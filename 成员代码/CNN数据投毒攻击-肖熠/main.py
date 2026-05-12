@@ -56,7 +56,13 @@ def select_subset(dataset, ratio=1/10):
     subset_size = int(len(dataset) * ratio)
     indices = np.random.choice(range(len(dataset)), subset_size, replace=False)
     return Subset(dataset, indices)
-
+    
+# ==========================================
+# ⚠️ 【安全警告 / Security Warning】
+# 以下函数包含了“数据投毒”的攻击逻辑。
+# 本代码仅限于本开源社区的靶场环境与授权安全测试中使用。
+# 严禁将此带有恶意篡改标签逻辑的数据加载器应用于任何生产环境，否则会导致模型崩溃或植入后门！
+# ==========================================
 def fetch_datasets(full_dataset, trainset, ratio):
     character = [[] for i in range(len(full_dataset.classes))]
     for index in trainset.indices:
