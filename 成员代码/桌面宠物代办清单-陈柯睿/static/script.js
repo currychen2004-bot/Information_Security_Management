@@ -13,8 +13,11 @@ const logoutButton = document.querySelector("#logoutButton");
 const loginPanel = document.querySelector("#loginPanel");
 const appShell = document.querySelector("#appShell");
 const loginForm = document.querySelector("#loginForm");
+const usernameInput = document.querySelector("#usernameInput");
 const passwordInput = document.querySelector("#passwordInput");
+const registerButton = document.querySelector("#registerButton");
 const loginMessage = document.querySelector("#loginMessage");
+const accountName = document.querySelector("#accountName");
 
 let state = null;
 
@@ -22,7 +25,7 @@ function showLogin(message = "") {
   appShell.hidden = true;
   loginPanel.hidden = false;
   loginMessage.textContent = message;
-  passwordInput.focus();
+  usernameInput.focus();
 }
 
 function showApp() {
@@ -97,17 +100,14 @@ async function request(url, options = {}) {
 
 async function loadState() {
   const payload = await request("/api/state");
+  const summary = await request("/api/account/summary");
+  accountName.textContent = `当前用户：${summary.username} · ${summary.levelLabel}`;
   showApp();
   render(payload);
 }
 
 async function loadSession() {
   const payload = await request("/api/session");
-  if (!payload.loginEnabled) {
-    showLogin("服务端未设置 PET_TODO_PASSWORD，暂时无法登录。");
-    return;
-  }
-
   if (payload.authenticated) {
     await loadState();
     return;
@@ -116,19 +116,22 @@ async function loadSession() {
   showLogin();
 }
 
-loginForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
+async function submitAuth(url) {
+  const username = usernameInput.value.trim();
   const password = passwordInput.value;
+  if (!username) {
+    showLogin("请输入用户名。");
+    return;
+  }
   if (!password) {
-    showLogin("请输入访问密码。");
+    showLogin("请输入密码。");
     return;
   }
 
   try {
-    await request("/api/login", {
+    await request(url, {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
     passwordInput.value = "";
     await loadState();
@@ -136,6 +139,15 @@ loginForm.addEventListener("submit", async (event) => {
     console.error(error);
     loginMessage.textContent = error.message;
   }
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuth("/api/login");
+});
+
+registerButton.addEventListener("click", async () => {
+  await submitAuth("/api/register");
 });
 
 logoutButton.addEventListener("click", async () => {

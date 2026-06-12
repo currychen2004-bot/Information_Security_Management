@@ -13,16 +13,26 @@
 
       <section id="loginPanel" class="login-panel card">
         <p class="eyebrow">Secure Todo</p>
-        <h1>登录后管理待办</h1>
+        <h1>注册或登录后管理待办</h1>
         <form id="loginForm" class="login-form">
+          <input
+            id="usernameInput"
+            type="text"
+            placeholder="用户名：3-24 位字母、数字或下划线"
+            autocomplete="username"
+            required
+          />
           <input
             id="passwordInput"
             type="password"
-            placeholder="输入本地访问密码"
+            placeholder="密码：至少 8 位"
             autocomplete="current-password"
             required
           />
-          <button type="submit">登录</button>
+          <div class="auth-actions">
+            <button type="submit">登录</button>
+            <button id="registerButton" class="ghost-button" type="button">注册</button>
+          </div>
         </form>
         <p id="loginMessage" class="login-message"></p>
       </section>
@@ -33,6 +43,7 @@
             <div>
               <p class="eyebrow">Desktop Pet Todo</p>
               <h1>桌面宠物待办</h1>
+              <p id="accountName" class="account-name">当前用户：加载中</p>
             </div>
             <div class="header-actions">
               <button id="petAction" class="ghost-button" type="button">摸摸它</button>

@@ -1,27 +1,35 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import hmac
 import json
 import os
 import random
+import re
 import secrets
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, g, jsonify, render_template, request, session
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 STATE_FILE = DATA_DIR / "state.json"
+USERS_FILE = DATA_DIR / "users.json"
+USER_STATES_DIR = DATA_DIR / "user-states"
 TODO_TEXT_MAX_LENGTH = 80
 PET_GROWTH_PER_LEVEL = 5
 MANY_PENDING_TODO_THRESHOLD = 5
 DEBUG_ENV_VALUE = "1"
-PASSWORD_ENV_NAME = "PET_TODO_PASSWORD"
 SECRET_KEY_ENV_NAME = "PET_TODO_SECRET_KEY"
-AUTHENTICATED_SESSION_KEY = "pet_todo_authenticated"
+SESSION_USER_ID_KEY = "pet_todo_user_id"
+SESSION_USERNAME_KEY = "pet_todo_username"
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,24}$")
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 64
+PASSWORD_HASH_ITERATIONS = 200_000
 
 PET_LEVELS = [
     "Lv.1 小团子",
@@ -69,29 +77,133 @@ app.config.update(
 )
 
 
-def configured_password() -> str:
-    return os.getenv(PASSWORD_ENV_NAME, "")
+def normalize_username(username: object) -> str:
+    return str(username or "").strip()
+
+
+def load_users() -> dict:
+    if not USERS_FILE.exists():
+        return {"users": []}
+
+    with USERS_FILE.open("r", encoding="utf-8") as file:
+        raw = json.load(file)
+
+    users = raw.get("users", [])
+    if not isinstance(users, list):
+        users = []
+
+    normalized_users = []
+    for user in users:
+        if not isinstance(user, dict):
+            continue
+        username = normalize_username(user.get("username"))
+        if not username:
+            continue
+        normalized_users.append(
+            {
+                "id": str(user.get("id") or uuid4()),
+                "username": username,
+                "password_hash": str(user.get("password_hash") or ""),
+                "salt": str(user.get("salt") or ""),
+                "iterations": int(user.get("iterations") or PASSWORD_HASH_ITERATIONS),
+            }
+        )
+
+    return {"users": normalized_users}
+
+
+def save_users(users_data: dict) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with USERS_FILE.open("w", encoding="utf-8") as file:
+        json.dump(users_data, file, ensure_ascii=False, indent=2)
+
+
+def find_user(username: str) -> dict | None:
+    target = username.casefold()
+    for user in load_users()["users"]:
+        if user["username"].casefold() == target:
+            return user
+    return None
+
+
+def current_user() -> dict | None:
+    user_id = session.get(SESSION_USER_ID_KEY)
+    username = session.get(SESSION_USERNAME_KEY)
+    if not user_id or not username:
+        return None
+
+    user = find_user(str(username))
+    if not user or user["id"] != user_id:
+        return None
+    return user
 
 
 def is_authenticated() -> bool:
-    return bool(session.get(AUTHENTICATED_SESSION_KEY))
+    return current_user() is not None
 
 
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(*args, **kwargs):
-        if not is_authenticated():
+        user = current_user()
+        if not user:
             return jsonify({"error": "请先登录后再访问待办数据。"}), 401
+        g.current_user = user
         return view(*args, **kwargs)
 
     return wrapped_view
 
 
-def load_state() -> dict:
-    if not STATE_FILE.exists():
-        return DEFAULT_STATE.copy()
+def validate_credentials(username: str, password: str) -> str | None:
+    if not USERNAME_PATTERN.fullmatch(username):
+        return "用户名需为 3-24 位字母、数字或下划线。"
+    if not (PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH):
+        return f"密码长度需为 {PASSWORD_MIN_LENGTH}-{PASSWORD_MAX_LENGTH} 位。"
+    return None
 
-    with STATE_FILE.open("r", encoding="utf-8") as file:
+
+def hash_password(password: str, salt: str | None = None) -> dict:
+    password_salt = salt or secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        bytes.fromhex(password_salt),
+        PASSWORD_HASH_ITERATIONS,
+    ).hex()
+    return {
+        "password_hash": digest,
+        "salt": password_salt,
+        "iterations": PASSWORD_HASH_ITERATIONS,
+    }
+
+
+def verify_password(password: str, user: dict) -> bool:
+    try:
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode("utf-8"),
+            bytes.fromhex(user["salt"]),
+            int(user["iterations"]),
+        ).hex()
+    except (KeyError, TypeError, ValueError):
+        return False
+    return hmac.compare_digest(digest, user.get("password_hash", ""))
+
+
+def user_state_file(user_id: str) -> Path:
+    return USER_STATES_DIR / f"{user_id}.json"
+
+
+def load_state(user_id: str) -> dict:
+    state_file = user_state_file(user_id)
+    if not state_file.exists():
+        return {
+            "todos": [],
+            "completed_total": DEFAULT_STATE["completed_total"],
+            "growth": DEFAULT_STATE["growth"],
+        }
+
+    with state_file.open("r", encoding="utf-8") as file:
         raw = json.load(file)
 
     todos = raw.get("todos", [])
@@ -117,9 +229,9 @@ def load_state() -> dict:
     }
 
 
-def save_state(state: dict) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with STATE_FILE.open("w", encoding="utf-8") as file:
+def save_state(user_id: str, state: dict) -> None:
+    USER_STATES_DIR.mkdir(parents=True, exist_ok=True)
+    with user_state_file(user_id).open("w", encoding="utf-8") as file:
         json.dump(state, file, ensure_ascii=False, indent=2)
 
 
@@ -175,30 +287,59 @@ def index():
 
 @app.get("/api/session")
 def get_session():
+    user = current_user()
     return jsonify(
         {
-            "authenticated": is_authenticated(),
-            "loginEnabled": bool(configured_password()),
+            "authenticated": user is not None,
+            "username": user["username"] if user else None,
         }
     )
 
 
-@app.post("/api/login")
-def login():
-    password = configured_password()
-    if not password:
-        return jsonify({"error": f"请先设置 {PASSWORD_ENV_NAME} 环境变量。"}), 503
-
+@app.post("/api/register")
+def register():
     payload = request.get_json(silent=True) or {}
-    submitted_password = str(payload.get("password") or "")
+    username = normalize_username(payload.get("username"))
+    password = str(payload.get("password") or "")
 
-    # Compare credentials in constant time to avoid leaking password length or prefix matches.
-    if not hmac.compare_digest(submitted_password, password):
-        return jsonify({"error": "密码不正确。"}), 401
+    validation_error = validate_credentials(username, password)
+    if validation_error:
+        return jsonify({"error": validation_error}), 400
+
+    users_data = load_users()
+    if any(user["username"].casefold() == username.casefold() for user in users_data["users"]):
+        return jsonify({"error": "用户名已存在。"}), 409
+
+    password_data = hash_password(password)
+    user = {
+        "id": str(uuid4()),
+        "username": username,
+        **password_data,
+    }
+    users_data["users"].append(user)
+    save_users(users_data)
 
     session.clear()
-    session[AUTHENTICATED_SESSION_KEY] = True
-    return jsonify({"authenticated": True})
+    session[SESSION_USER_ID_KEY] = user["id"]
+    session[SESSION_USERNAME_KEY] = user["username"]
+    return jsonify({"authenticated": True, "username": user["username"]}), 201
+
+
+@app.post("/api/login")
+def login():
+    payload = request.get_json(silent=True) or {}
+    username = normalize_username(payload.get("username"))
+    submitted_password = str(payload.get("password") or "")
+    user = find_user(username)
+
+    # Return a generic message to avoid revealing whether the username exists.
+    if not user or not verify_password(submitted_password, user):
+        return jsonify({"error": "用户名或密码不正确。"}), 401
+
+    session.clear()
+    session[SESSION_USER_ID_KEY] = user["id"]
+    session[SESSION_USERNAME_KEY] = user["username"]
+    return jsonify({"authenticated": True, "username": user["username"]})
 
 
 @app.post("/api/logout")
@@ -210,8 +351,25 @@ def logout():
 @app.get("/api/state")
 @login_required
 def get_state():
-    state = load_state()
+    state = load_state(g.current_user["id"])
     return jsonify(build_payload(state))
+
+
+@app.get("/api/account/summary")
+@login_required
+def account_summary():
+    state = load_state(g.current_user["id"])
+    pending = sum(1 for todo in state["todos"] if not todo["done"])
+    return jsonify(
+        {
+            "username": g.current_user["username"],
+            "todoTotal": len(state["todos"]),
+            "pending": pending,
+            "completedTotal": state["completed_total"],
+            "growth": state["growth"],
+            "levelLabel": PET_LEVELS[level_index(state["growth"])],
+        }
+    )
 
 
 @app.post("/api/todos")
@@ -223,7 +381,7 @@ def create_todo():
     if not text:
         return jsonify({"error": "任务内容不能为空。"}), 400
 
-    state = load_state()
+    state = load_state(g.current_user["id"])
     state["todos"].insert(
         0,
         {
@@ -232,7 +390,7 @@ def create_todo():
             "done": False,
         },
     )
-    save_state(state)
+    save_state(g.current_user["id"], state)
     return jsonify(build_payload(state, mood="idle", speech="任务已加入清单。")), 201
 
 
@@ -240,7 +398,7 @@ def create_todo():
 @login_required
 def update_todo(todo_id: str):
     payload = request.get_json(silent=True) or {}
-    state = load_state()
+    state = load_state(g.current_user["id"])
 
     for todo in state["todos"]:
         if todo["id"] != todo_id:
@@ -263,7 +421,7 @@ def update_todo(todo_id: str):
             speech = None
             mood = None
 
-        save_state(state)
+        save_state(g.current_user["id"], state)
         return jsonify(build_payload(state, mood=mood, speech=speech))
 
     return jsonify({"error": "没有找到对应的任务。"}), 404
@@ -272,30 +430,30 @@ def update_todo(todo_id: str):
 @app.delete("/api/todos/<todo_id>")
 @login_required
 def delete_todo(todo_id: str):
-    state = load_state()
+    state = load_state(g.current_user["id"])
     original_count = len(state["todos"])
     state["todos"] = [todo for todo in state["todos"] if todo["id"] != todo_id]
 
     if len(state["todos"]) == original_count:
         return jsonify({"error": "没有找到对应的任务。"}), 404
 
-    save_state(state)
+    save_state(g.current_user["id"], state)
     return jsonify(build_payload(state))
 
 
 @app.post("/api/todos/clear-done")
 @login_required
 def clear_done():
-    state = load_state()
+    state = load_state(g.current_user["id"])
     state["todos"] = [todo for todo in state["todos"] if not todo["done"]]
-    save_state(state)
+    save_state(g.current_user["id"], state)
     return jsonify(build_payload(state, mood="idle", speech="已完成的任务已经清掉了。"))
 
 
 @app.post("/api/pet/pat")
 @login_required
 def pet_pat():
-    state = load_state()
+    state = load_state(g.current_user["id"])
     pending = sum(1 for todo in state["todos"] if not todo["done"])
 
     if pending == 0:

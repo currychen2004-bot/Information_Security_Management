@@ -115,6 +115,12 @@ input {
   gap: 10px;
 }
 
+.account-name {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--muted);
@@ -338,6 +344,12 @@ h2 {
   margin-top: 22px;
 }
 
+.auth-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
 .login-message {
   min-height: 1.5em;
   margin-top: 14px;
@@ -375,6 +387,12 @@ button {
   color: white;
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
   box-shadow: 0 10px 24px rgba(191, 77, 56, 0.28);
+}
+
+.login-form .ghost-button {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow: none;
 }
 
 button:hover {
@@ -493,9 +511,15 @@ button:hover {
   .pet-header,
   .todo-top,
   .footer-bar,
-  .header-actions {
+  .header-actions,
+  .auth-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .auth-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .counter {
