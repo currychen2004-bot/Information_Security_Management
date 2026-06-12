@@ -9,8 +9,26 @@ const todoInput = document.querySelector("#todoInput");
 const todoList = document.querySelector("#todoList");
 const clearDoneButton = document.querySelector("#clearDone");
 const petActionButton = document.querySelector("#petAction");
+const logoutButton = document.querySelector("#logoutButton");
+const loginPanel = document.querySelector("#loginPanel");
+const appShell = document.querySelector("#appShell");
+const loginForm = document.querySelector("#loginForm");
+const passwordInput = document.querySelector("#passwordInput");
+const loginMessage = document.querySelector("#loginMessage");
 
 let state = null;
+
+function showLogin(message = "") {
+  appShell.hidden = true;
+  loginPanel.hidden = false;
+  loginMessage.textContent = message;
+  passwordInput.focus();
+}
+
+function showApp() {
+  loginPanel.hidden = true;
+  appShell.hidden = false;
+}
 
 function setPet(petState) {
   pet.className = `pet mood-${petState.mood}`;
@@ -68,6 +86,9 @@ async function request(url, options = {}) {
 
   const payload = await response.json();
   if (!response.ok) {
+    if (response.status === 401) {
+      showLogin(payload.error || "请先登录。");
+    }
     throw new Error(payload.error || "请求失败");
   }
 
@@ -76,8 +97,59 @@ async function request(url, options = {}) {
 
 async function loadState() {
   const payload = await request("/api/state");
+  showApp();
   render(payload);
 }
+
+async function loadSession() {
+  const payload = await request("/api/session");
+  if (!payload.loginEnabled) {
+    showLogin("服务端未设置 PET_TODO_PASSWORD，暂时无法登录。");
+    return;
+  }
+
+  if (payload.authenticated) {
+    await loadState();
+    return;
+  }
+
+  showLogin();
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const password = passwordInput.value;
+  if (!password) {
+    showLogin("请输入访问密码。");
+    return;
+  }
+
+  try {
+    await request("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    passwordInput.value = "";
+    await loadState();
+  } catch (error) {
+    console.error(error);
+    loginMessage.textContent = error.message;
+  }
+});
+
+logoutButton.addEventListener("click", async () => {
+  try {
+    await request("/api/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    state = null;
+    showLogin("已退出登录。");
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 todoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -159,6 +231,7 @@ petActionButton.addEventListener("click", async () => {
   }
 });
 
-loadState().catch((error) => {
+loadSession().catch((error) => {
   console.error(error);
+  showLogin(error.message);
 });

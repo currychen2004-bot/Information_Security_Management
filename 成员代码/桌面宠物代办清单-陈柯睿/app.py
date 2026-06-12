@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import functools
+import hmac
 import json
 import os
 import random
+import secrets
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, session
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -16,6 +19,9 @@ TODO_TEXT_MAX_LENGTH = 80
 PET_GROWTH_PER_LEVEL = 5
 MANY_PENDING_TODO_THRESHOLD = 5
 DEBUG_ENV_VALUE = "1"
+PASSWORD_ENV_NAME = "PET_TODO_PASSWORD"
+SECRET_KEY_ENV_NAME = "PET_TODO_SECRET_KEY"
+AUTHENTICATED_SESSION_KEY = "pet_todo_authenticated"
 
 PET_LEVELS = [
     "Lv.1 小团子",
@@ -56,6 +62,29 @@ DEFAULT_STATE = {
 
 
 app = Flask(__name__)
+app.secret_key = os.getenv(SECRET_KEY_ENV_NAME) or secrets.token_hex(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+)
+
+
+def configured_password() -> str:
+    return os.getenv(PASSWORD_ENV_NAME, "")
+
+
+def is_authenticated() -> bool:
+    return bool(session.get(AUTHENTICATED_SESSION_KEY))
+
+
+def login_required(view):
+    @functools.wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not is_authenticated():
+            return jsonify({"error": "请先登录后再访问待办数据。"}), 401
+        return view(*args, **kwargs)
+
+    return wrapped_view
 
 
 def load_state() -> dict:
@@ -144,13 +173,49 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/api/session")
+def get_session():
+    return jsonify(
+        {
+            "authenticated": is_authenticated(),
+            "loginEnabled": bool(configured_password()),
+        }
+    )
+
+
+@app.post("/api/login")
+def login():
+    password = configured_password()
+    if not password:
+        return jsonify({"error": f"请先设置 {PASSWORD_ENV_NAME} 环境变量。"}), 503
+
+    payload = request.get_json(silent=True) or {}
+    submitted_password = str(payload.get("password") or "")
+
+    # Compare credentials in constant time to avoid leaking password length or prefix matches.
+    if not hmac.compare_digest(submitted_password, password):
+        return jsonify({"error": "密码不正确。"}), 401
+
+    session.clear()
+    session[AUTHENTICATED_SESSION_KEY] = True
+    return jsonify({"authenticated": True})
+
+
+@app.post("/api/logout")
+def logout():
+    session.clear()
+    return jsonify({"authenticated": False})
+
+
 @app.get("/api/state")
+@login_required
 def get_state():
     state = load_state()
     return jsonify(build_payload(state))
 
 
 @app.post("/api/todos")
+@login_required
 def create_todo():
     payload = request.get_json(silent=True) or {}
     text = str(payload.get("text") or "").strip()
@@ -172,6 +237,7 @@ def create_todo():
 
 
 @app.patch("/api/todos/<todo_id>")
+@login_required
 def update_todo(todo_id: str):
     payload = request.get_json(silent=True) or {}
     state = load_state()
@@ -204,6 +270,7 @@ def update_todo(todo_id: str):
 
 
 @app.delete("/api/todos/<todo_id>")
+@login_required
 def delete_todo(todo_id: str):
     state = load_state()
     original_count = len(state["todos"])
@@ -217,6 +284,7 @@ def delete_todo(todo_id: str):
 
 
 @app.post("/api/todos/clear-done")
+@login_required
 def clear_done():
     state = load_state()
     state["todos"] = [todo for todo in state["todos"] if not todo["done"]]
@@ -225,6 +293,7 @@ def clear_done():
 
 
 @app.post("/api/pet/pat")
+@login_required
 def pet_pat():
     state = load_state()
     pending = sum(1 for todo in state["todos"] if not todo["done"])

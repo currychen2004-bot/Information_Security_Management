@@ -11,6 +11,7 @@
 - 宠物根据任务数量和完成情况切换状态
 - 使用本地 `JSON` 文件保存数据
 - 前后端分离得比较轻：页面由 Flask 提供，交互通过 `fetch` 调接口完成
+- 使用本地访问密码保护待办数据接口，登录后才能读取或修改任务
 
 ## 运行方式
 
@@ -36,13 +37,13 @@ pip install -r requirements.txt
 启动项目：
 
 ```bash
-python app.py
+PET_TODO_PASSWORD=change-me python app.py
 ```
 
 如需本地调试模式，可以显式开启：
 
 ```bash
-FLASK_DEBUG=1 python app.py
+PET_TODO_PASSWORD=change-me FLASK_DEBUG=1 python app.py
 ```
 
 启动后在浏览器打开：
@@ -76,10 +77,14 @@ pet-todo/
 - 从 `data/state.json` 读取和保存待办数据
 - 根据完成数量计算宠物等级和状态
 - 提供待办相关接口
+- 提供登录、登出和会话状态接口，并使用 Flask session 保护待办数据接口
 - 通过具名常量控制任务最大长度、宠物升级进度和任务过多阈值，避免魔法数字散落在业务逻辑中
 
 目前包含的主要接口：
 
+- `GET /api/session` 获取当前登录状态
+- `POST /api/login` 校验本地访问密码并建立会话
+- `POST /api/logout` 清除当前会话
 - `GET /api/state` 获取当前页面状态
 - `POST /api/todos` 新增任务
 - `PATCH /api/todos/<todo_id>` 更新任务完成状态
@@ -118,6 +123,8 @@ pet-todo/
 - 不要把 `.env`、密钥、证书或真实部署配置提交到仓库，根目录 `.gitignore` 已补充相关规则。
 - `data/state.json` 是本地演示数据，不适合保存真实隐私内容；如果需要保存个人数据，建议改用数据库并增加访问控制。
 - Flask 调试模式会暴露交互式调试器，默认不会开启；只应在本机开发环境通过 `FLASK_DEBUG=1` 临时启用。
+- `PET_TODO_PASSWORD` 必须通过环境变量设置，不应写入代码或提交到仓库。
+- 未登录请求待办接口会返回 `401`，避免未授权用户直接读取或修改本地任务数据。
 
 ## 验证方式
 
@@ -128,3 +135,5 @@ python3 -m py_compile app.py
 ```
 
 再启动项目，手动验证添加、完成、删除、清除已完成任务和点击宠物反馈是否正常。
+
+也可以使用 Flask test client 验证未登录访问会被拒绝、登录后接口可用。

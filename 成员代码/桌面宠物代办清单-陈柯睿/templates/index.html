@@ -11,14 +11,33 @@
       <div class="glow glow-left"></div>
       <div class="glow glow-right"></div>
 
-      <main class="app-shell">
+      <section id="loginPanel" class="login-panel card">
+        <p class="eyebrow">Secure Todo</p>
+        <h1>登录后管理待办</h1>
+        <form id="loginForm" class="login-form">
+          <input
+            id="passwordInput"
+            type="password"
+            placeholder="输入本地访问密码"
+            autocomplete="current-password"
+            required
+          />
+          <button type="submit">登录</button>
+        </form>
+        <p id="loginMessage" class="login-message"></p>
+      </section>
+
+      <main id="appShell" class="app-shell" hidden>
         <section class="pet-panel card">
           <div class="pet-header">
             <div>
               <p class="eyebrow">Desktop Pet Todo</p>
               <h1>桌面宠物待办</h1>
             </div>
-            <button id="petAction" class="ghost-button" type="button">摸摸它</button>
+            <div class="header-actions">
+              <button id="petAction" class="ghost-button" type="button">摸摸它</button>
+              <button id="logoutButton" class="ghost-button" type="button">退出</button>
+            </div>
           </div>
 
           <div class="pet-stage">
