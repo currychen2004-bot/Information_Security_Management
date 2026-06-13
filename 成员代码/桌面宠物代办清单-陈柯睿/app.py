@@ -8,6 +8,8 @@ import os
 import random
 import re
 import secrets
+import tempfile
+import threading
 from pathlib import Path
 from uuid import uuid4
 
@@ -24,6 +26,7 @@ PET_GROWTH_PER_LEVEL = 5
 MANY_PENDING_TODO_THRESHOLD = 5
 DEBUG_ENV_VALUE = "1"
 SECRET_KEY_ENV_NAME = "PET_TODO_SECRET_KEY"
+COOKIE_SECURE_ENV_NAME = "PET_TODO_COOKIE_SECURE"
 SESSION_USER_ID_KEY = "pet_todo_user_id"
 SESSION_USERNAME_KEY = "pet_todo_username"
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,24}$")
@@ -68,13 +71,30 @@ DEFAULT_STATE = {
     "growth": 0,
 }
 
+USERS_FILE_LOCK = threading.Lock()
 
 app = Flask(__name__)
 app.secret_key = os.getenv(SECRET_KEY_ENV_NAME) or secrets.token_hex(32)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.getenv(COOKIE_SECURE_ENV_NAME) == DEBUG_ENV_VALUE,
 )
+
+
+def write_json_file(path: Path, data: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w",
+        encoding="utf-8",
+        dir=path.parent,
+        delete=False,
+    ) as file:
+        json.dump(data, file, ensure_ascii=False, indent=2)
+        file.write("\n")
+        temp_name = file.name
+
+    os.replace(temp_name, path)
 
 
 def normalize_username(username: object) -> str:
@@ -113,9 +133,7 @@ def load_users() -> dict:
 
 
 def save_users(users_data: dict) -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with USERS_FILE.open("w", encoding="utf-8") as file:
-        json.dump(users_data, file, ensure_ascii=False, indent=2)
+    write_json_file(USERS_FILE, users_data)
 
 
 def find_user(username: str) -> dict | None:
@@ -230,9 +248,7 @@ def load_state(user_id: str) -> dict:
 
 
 def save_state(user_id: str, state: dict) -> None:
-    USER_STATES_DIR.mkdir(parents=True, exist_ok=True)
-    with user_state_file(user_id).open("w", encoding="utf-8") as file:
-        json.dump(state, file, ensure_ascii=False, indent=2)
+    write_json_file(user_state_file(user_id), state)
 
 
 def level_index(growth: int) -> int:
@@ -306,18 +322,19 @@ def register():
     if validation_error:
         return jsonify({"error": validation_error}), 400
 
-    users_data = load_users()
-    if any(user["username"].casefold() == username.casefold() for user in users_data["users"]):
-        return jsonify({"error": "用户名已存在。"}), 409
-
     password_data = hash_password(password)
-    user = {
-        "id": str(uuid4()),
-        "username": username,
-        **password_data,
-    }
-    users_data["users"].append(user)
-    save_users(users_data)
+    with USERS_FILE_LOCK:
+        users_data = load_users()
+        if any(user["username"].casefold() == username.casefold() for user in users_data["users"]):
+            return jsonify({"error": "用户名已存在。"}), 409
+
+        user = {
+            "id": str(uuid4()),
+            "username": username,
+            **password_data,
+        }
+        users_data["users"].append(user)
+        save_users(users_data)
 
     session.clear()
     session[SESSION_USER_ID_KEY] = user["id"]
