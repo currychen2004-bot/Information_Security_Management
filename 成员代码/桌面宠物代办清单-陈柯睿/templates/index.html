@@ -11,14 +11,61 @@
       <div class="glow glow-left"></div>
       <div class="glow glow-right"></div>
 
-      <main class="app-shell">
+      <section id="loginPanel" class="login-panel card">
+        <p class="eyebrow">Secure Todo</p>
+        <h1 id="authTitle">登录</h1>
+        <form id="loginForm" class="login-form">
+          <input
+            id="usernameInput"
+            type="text"
+            placeholder="用户名"
+            autocomplete="username"
+            required
+          />
+          <input
+            id="passwordInput"
+            type="password"
+            placeholder="密码：至少 8 位"
+            autocomplete="current-password"
+            required
+          />
+          <button type="submit">登录</button>
+          <button id="showRegisterButton" class="text-button" type="button">没有账号？去注册</button>
+        </form>
+
+        <form id="registerForm" class="login-form" hidden>
+          <input
+            id="registerUsernameInput"
+            type="text"
+            placeholder="用户名：3-24 位字母、数字或下划线"
+            autocomplete="username"
+            required
+          />
+          <input
+            id="registerPasswordInput"
+            type="password"
+            placeholder="密码：至少 8 位"
+            autocomplete="new-password"
+            required
+          />
+          <button type="submit">注册</button>
+          <button id="showLoginButton" class="text-button" type="button">已有账号？返回登录</button>
+        </form>
+        <p id="loginMessage" class="login-message"></p>
+      </section>
+
+      <main id="appShell" class="app-shell" hidden>
         <section class="pet-panel card">
           <div class="pet-header">
             <div>
               <p class="eyebrow">Desktop Pet Todo</p>
               <h1>桌面宠物待办</h1>
+              <p id="accountName" class="account-name">当前用户：加载中</p>
             </div>
-            <button id="petAction" class="ghost-button" type="button">摸摸它</button>
+            <div class="header-actions">
+              <button id="petAction" class="ghost-button" type="button">摸摸它</button>
+              <button id="logoutButton" class="ghost-button" type="button">退出</button>
+            </div>
           </div>
 
           <div class="pet-stage">

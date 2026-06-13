@@ -30,6 +30,10 @@ input {
   font: inherit;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .scene {
   position: relative;
   min-height: 100vh;
@@ -68,6 +72,14 @@ input {
   grid-template-columns: 1.05fr 1fr;
 }
 
+.login-panel {
+  position: relative;
+  z-index: 1;
+  width: min(460px, calc(100% - 40px));
+  margin: 12vh auto 0;
+  padding: 28px;
+}
+
 .card {
   backdrop-filter: blur(16px);
   background: var(--card);
@@ -96,6 +108,17 @@ input {
 .footer-bar {
   justify-content: space-between;
   gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.account-name {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .eyebrow {
@@ -315,7 +338,21 @@ h2 {
   margin: 22px 0 18px;
 }
 
-.todo-form input {
+.login-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.login-message {
+  min-height: 1.5em;
+  margin-top: 14px;
+  color: var(--accent-strong);
+  line-height: 1.5;
+}
+
+.todo-form input,
+.login-form input {
   width: 100%;
   padding: 14px 16px;
   border: 1px solid rgba(109, 70, 45, 0.12);
@@ -325,7 +362,8 @@ h2 {
   outline: none;
 }
 
-.todo-form input:focus {
+.todo-form input:focus,
+.login-form input:focus {
   border-color: rgba(214, 104, 83, 0.55);
   box-shadow: 0 0 0 4px rgba(214, 104, 83, 0.12);
 }
@@ -337,11 +375,25 @@ button {
   transition: transform 140ms ease, background 140ms ease, opacity 140ms ease;
 }
 
-.todo-form button {
+.todo-form button,
+.login-form button {
   padding: 14px 18px;
   color: white;
   background: linear-gradient(180deg, var(--accent), var(--accent-strong));
   box-shadow: 0 10px 24px rgba(191, 77, 56, 0.28);
+}
+
+.login-form .ghost-button {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow: none;
+}
+
+.login-form .text-button {
+  padding: 4px 0 0;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
 }
 
 button:hover {
@@ -459,7 +511,8 @@ button:hover {
   .todo-form,
   .pet-header,
   .todo-top,
-  .footer-bar {
+  .footer-bar,
+  .header-actions {
     flex-direction: column;
     align-items: stretch;
   }

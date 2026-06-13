@@ -9,8 +9,47 @@ const todoInput = document.querySelector("#todoInput");
 const todoList = document.querySelector("#todoList");
 const clearDoneButton = document.querySelector("#clearDone");
 const petActionButton = document.querySelector("#petAction");
+const logoutButton = document.querySelector("#logoutButton");
+const loginPanel = document.querySelector("#loginPanel");
+const appShell = document.querySelector("#appShell");
+const authTitle = document.querySelector("#authTitle");
+const loginForm = document.querySelector("#loginForm");
+const usernameInput = document.querySelector("#usernameInput");
+const passwordInput = document.querySelector("#passwordInput");
+const registerForm = document.querySelector("#registerForm");
+const registerUsernameInput = document.querySelector("#registerUsernameInput");
+const registerPasswordInput = document.querySelector("#registerPasswordInput");
+const showRegisterButton = document.querySelector("#showRegisterButton");
+const showLoginButton = document.querySelector("#showLoginButton");
+const loginMessage = document.querySelector("#loginMessage");
+const accountName = document.querySelector("#accountName");
 
 let state = null;
+
+function showLogin(message = "") {
+  appShell.hidden = true;
+  loginPanel.hidden = false;
+  loginForm.hidden = false;
+  registerForm.hidden = true;
+  authTitle.textContent = "登录";
+  loginMessage.textContent = message;
+  usernameInput.focus();
+}
+
+function showRegister(message = "") {
+  appShell.hidden = true;
+  loginPanel.hidden = false;
+  loginForm.hidden = true;
+  registerForm.hidden = false;
+  authTitle.textContent = "注册";
+  loginMessage.textContent = message;
+  registerUsernameInput.focus();
+}
+
+function showApp() {
+  loginPanel.hidden = true;
+  appShell.hidden = false;
+}
 
 function setPet(petState) {
   pet.className = `pet mood-${petState.mood}`;
@@ -68,6 +107,9 @@ async function request(url, options = {}) {
 
   const payload = await response.json();
   if (!response.ok) {
+    if (response.status === 401) {
+      showLogin(payload.error || "请先登录。");
+    }
     throw new Error(payload.error || "请求失败");
   }
 
@@ -76,8 +118,79 @@ async function request(url, options = {}) {
 
 async function loadState() {
   const payload = await request("/api/state");
+  const summary = await request("/api/account/summary");
+  accountName.textContent = `当前用户：${summary.username} · ${summary.levelLabel}`;
+  showApp();
   render(payload);
 }
+
+async function loadSession() {
+  const payload = await request("/api/session");
+  if (payload.authenticated) {
+    await loadState();
+    return;
+  }
+
+  showLogin();
+}
+
+async function submitAuth(url, usernameField, passwordField) {
+  const username = usernameField.value.trim();
+  const password = passwordField.value;
+  if (!username) {
+    loginMessage.textContent = "请输入用户名。";
+    usernameField.focus();
+    return;
+  }
+  if (!password) {
+    loginMessage.textContent = "请输入密码。";
+    passwordField.focus();
+    return;
+  }
+
+  try {
+    await request(url, {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    passwordField.value = "";
+    await loadState();
+  } catch (error) {
+    console.error(error);
+    loginMessage.textContent = error.message;
+  }
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuth("/api/login", usernameInput, passwordInput);
+});
+
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuth("/api/register", registerUsernameInput, registerPasswordInput);
+});
+
+showRegisterButton.addEventListener("click", () => {
+  showRegister();
+});
+
+showLoginButton.addEventListener("click", () => {
+  showLogin();
+});
+
+logoutButton.addEventListener("click", async () => {
+  try {
+    await request("/api/logout", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    state = null;
+    showLogin("已退出登录。");
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 todoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -159,6 +272,7 @@ petActionButton.addEventListener("click", async () => {
   }
 });
 
-loadState().catch((error) => {
+loadSession().catch((error) => {
   console.error(error);
+  showLogin(error.message);
 });
