@@ -144,16 +144,55 @@
 
 \subsection{运行截图与修改思路说明}
 
-本地运行桌面宠物待办清单后，页面首先展示新增的注册/登录入口，如图~\ref{fig:pet-todo-login} 所示。该截图对应本次修改后的前端初始状态：用户未登录时只能看到认证面板，不能直接看到待办列表或触发待办数据接口。
+本地运行桌面宠物待办清单后，用户首先通过注册与登录界面完成身份认证。注册界面如图~\ref{fig:pet-todo-register} 所示，登录界面如图~\ref{fig:pet-todo-login-form} 所示。完成登录后，系统才展示待办主界面，如图~\ref{fig:pet-todo-main} 所示。三张图分别对应“注册账号、建立会话、访问受保护资源”三个阶段。
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{assets/pet-todo-login.png}
-    \caption{桌面宠物待办清单新增注册/登录模块后的运行界面}
-    \label{fig:pet-todo-login}
+    \includegraphics[width=0.72\textwidth]{assets/pet-todo-register.png}
+    \caption{用户注册界面：新增账号创建入口（占位图可替换为用户提供截图）}
+    \label{fig:pet-todo-register}
 \end{figure}
 
-从图~\ref{fig:pet-todo-login} 可以看出，本次修改不是简单地在 README 中补充说明，而是将“先注册或登录、再访问数据”的安全控制显式加入到应用交互流程中。前端修改集中在 \texttt{templates/index.html}、\texttt{static/script.js} 和 \texttt{static/styles.css}：新增用户名和密码输入、注册按钮、登录状态切换逻辑和对应样式。后端修改集中在 \texttt{app.py}：新增 \texttt{/api/register}、\texttt{/api/session}、\texttt{/api/login}、\texttt{/api/logout} 和 \texttt{/api/account/summary}，并用 \texttt{login\_required} 装饰器保护待办数据接口。这样即使攻击者绕过前端页面直接请求接口，后端仍会返回 \texttt{401}，安全控制不会只停留在页面展示层。
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.72\textwidth]{assets/pet-todo-login-form.png}
+    \caption{用户登录界面：认证通过后建立 Flask Session（占位图可替换为用户提供截图）}
+    \label{fig:pet-todo-login-form}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{assets/pet-todo-main.png}
+    \caption{登录后的桌面宠物待办主界面：当前用户只能访问自己的任务数据}
+    \label{fig:pet-todo-main}
+\end{figure}
+
+从图~\ref{fig:pet-todo-register}、图~\ref{fig:pet-todo-login-form} 和图~\ref{fig:pet-todo-main} 可以看出，本次修改不是简单地在 README 中补充说明，而是将“先注册或登录、再访问数据”的安全控制显式加入到应用交互流程中。前端修改集中在 \texttt{templates/index.html}、\texttt{static/script.js} 和 \texttt{static/styles.css}：新增用户名和密码输入、注册表单、登录表单、表单切换逻辑、登录后账号展示和对应样式。后端修改集中在 \texttt{app.py}：新增 \texttt{/api/register}、\texttt{/api/session}、\texttt{/api/login}、\texttt{/api/logout} 和 \texttt{/api/account/summary}，并用 \texttt{login\_required} 装饰器保护待办数据接口。这样即使攻击者绕过前端页面直接请求接口，后端仍会返回 \texttt{401}，安全控制不会只停留在页面展示层。
+
+\subsection{关键代码修改点}
+
+为突出本次安全加固的技术细节，表~\ref{tab:key-code-changes} 汇总了主要代码文件、具体修改和安全作用。
+
+\begin{table}[H]
+    \centering
+    \caption{关键代码修改点与作用}
+    \label{tab:key-code-changes}
+    \begin{tabularx}{\textwidth}{L{4.2cm}Y Y}
+        \toprule
+        文件位置 & 具体修改 & 安全作用 \\
+        \midrule
+        \texttt{app.py} & 新增 \texttt{/api/register}、\texttt{/api/login}、\texttt{/api/logout}、\texttt{/api/session} & 建立完整用户注册/登录流程，替代原来无认证访问模式 \\
+        \texttt{app.py} & 新增 \texttt{hash\_password()} 和 \texttt{verify\_password()}，使用 PBKDF2、随机盐和迭代次数保存密码哈希 & 避免明文保存密码，降低凭据泄露后的直接利用风险 \\
+        \texttt{app.py} & 新增 \texttt{login\_required} 装饰器，并应用到 \texttt{/api/state}、待办增删改、清理已完成、宠物反馈等接口 & 为现有接口新增后端权限校验，未登录访问统一返回 \texttt{401} \\
+        \texttt{app.py} & 新增 \texttt{/api/account/summary} & 新增必须身份验证才能访问的功能接口，用于展示当前用户账号和任务概览 \\
+        \texttt{app.py} & 将待办状态从全局文件改为 \texttt{data/user-states/<user\_id>.json} & 按用户隔离数据，避免不同用户互相读取或修改待办 \\
+        \texttt{app.py} & 修复默认状态浅拷贝问题，每次返回独立默认状态对象 & 防止多个新用户共享同一个 \texttt{todos} 列表引用，消除数据串扰 \\
+        \texttt{templates/index.html} & 拆分登录表单和注册表单，新增账号切换入口 & 对应用户注册/登录模块的前端入口 \\
+        \texttt{static/script.js} & 新增 \texttt{submitAuth()}、\texttt{showLogin()}、\texttt{showRegister()}，登录后再调用 \texttt{/api/state} 和 \texttt{/api/account/summary} & 保证前端流程与后端会话状态一致，未登录时不加载受保护数据 \\
+        \texttt{static/styles.css} & 新增登录/注册表单切换、文本按钮和账号显示样式 & 提升认证流程可用性，明确区分未登录和已登录状态 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \section{风险识别}
 
@@ -418,7 +457,7 @@ GET  /api/state     -> 200
 
 上述结果说明：页面可以正常访问；未登录时无法读取待办数据；注册/登录成功后可以访问账号概览和待办状态。
 
-其中，\texttt{GET /} 返回 \texttt{200} 对应图~\ref{fig:pet-todo-login} 中展示的注册/登录入口页面；\texttt{GET /api/state} 在未登录时返回 \texttt{401}，说明图中认证面板并非单纯的前端遮挡，而是与后端接口访问控制相配合。注册/登录成功后，\texttt{/api/account/summary} 和 \texttt{/api/state} 均可访问，说明认证通过后新增功能接口和原有待办功能都能正常工作。
+其中，\texttt{GET /} 返回 \texttt{200} 对应图~\ref{fig:pet-todo-register} 和图~\ref{fig:pet-todo-login-form} 中展示的注册/登录入口页面；\texttt{GET /api/state} 在未登录时返回 \texttt{401}，说明认证面板并非单纯的前端遮挡，而是与后端接口访问控制相配合。注册/登录成功后，\texttt{/api/account/summary} 和 \texttt{/api/state} 均可访问，对应图~\ref{fig:pet-todo-main} 中展示的登录后主界面，说明认证通过后新增功能接口和原有待办功能都能正常工作。
 
 扫描与验证报告已保存到：
 
@@ -468,6 +507,43 @@ reports/before-after-diff.md
     \item \texttt{reports/scan-report.md}
     \item \texttt{reports/before-after-diff.md}
 \end{itemize}
+
+\section{作业要求符合性检查}
+
+根据作业要求，本次修改需要既有实质性代码改动，又要体现完整安全管理过程。表~\ref{tab:requirement-check} 对代码要求进行逐项核对，表~\ref{tab:process-check} 对安全管理过程材料进行核对。
+
+\begin{table}[H]
+    \centering
+    \caption{代码任务要求符合性检查}
+    \label{tab:requirement-check}
+    \begin{tabularx}{\textwidth}{L{4.6cm}Y Y}
+        \toprule
+        作业要求 & 本次实现 & 证据位置 \\
+        \midrule
+        新增用户注册/登录模块 & 新增 \texttt{/api/register}、\texttt{/api/login}、\texttt{/api/logout} 和 \texttt{/api/session}；前端提供注册/登录表单切换 & \texttt{app.py}、\texttt{templates/index.html}、图~\ref{fig:pet-todo-register}、图~\ref{fig:pet-todo-login-form} \\
+        为现有接口新增权限校验逻辑 & 使用 \texttt{login\_required} 保护 \texttt{/api/state}、待办新增、修改、删除、清除已完成和宠物反馈接口 & \texttt{app.py}、表~\ref{tab:key-code-changes} \\
+        修改仓库中自己写的有安全问题的模块，写出安全加固版本 & 将公开待办接口改为登录后访问；密码使用 PBKDF2 和随机盐保存哈希；待办状态按用户 ID 隔离 & \texttt{app.py}、\texttt{docs/fix-report.md}、\texttt{reports/before-after-diff.md} \\
+        新增需要身份验证才能访问的功能接口 & 新增 \texttt{GET /api/account/summary}，用于返回当前用户、任务总数、待完成数量、累计完成数和等级 & \texttt{app.py}、接口级验证记录 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{table}[H]
+    \centering
+    \caption{安全管理过程材料符合性检查}
+    \label{tab:process-check}
+    \begin{tabularx}{\textwidth}{L{4.6cm}Y Y}
+        \toprule
+        作业要求 & 本次产出 & 说明 \\
+        \midrule
+        第一步：风险识别 & \texttt{docs/risk-analysis.md} & 分析未授权访问、明文密码、横向越权和错误响应泄露风险 \\
+        第二步：安全约束表达 & \texttt{docs/constraint-doc.md}、\texttt{docs/prompt-records.md} & 将风险转化为 Prompt 约束，包括禁止明文密码、要求后端权限校验和用户数据隔离 \\
+        第三步：AI 生成结果检查与安全审查 & \texttt{docs/security-checklist.md} & 对注册登录、权限校验、密码哈希、用户隔离和受保护接口逐项检查 \\
+        第四步：问题整改、验证与过程留痕 & \texttt{docs/fix-report.md}、\texttt{reports/scan-report.md}、\texttt{reports/before-after-diff.md} & 记录整改内容、浅拷贝数据隔离问题处置、接口测试和整改前后对比 \\
+        PR 描述材料 & 本报告“PR 描述材料”章节 & 包含负责环节、涉及模块、识别风险、安全约束进入 AI 交互方式、审查发现与处置、材料位置 \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
 
 \section{总结}
 

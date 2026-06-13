@@ -12,10 +12,15 @@ const petActionButton = document.querySelector("#petAction");
 const logoutButton = document.querySelector("#logoutButton");
 const loginPanel = document.querySelector("#loginPanel");
 const appShell = document.querySelector("#appShell");
+const authTitle = document.querySelector("#authTitle");
 const loginForm = document.querySelector("#loginForm");
 const usernameInput = document.querySelector("#usernameInput");
 const passwordInput = document.querySelector("#passwordInput");
-const registerButton = document.querySelector("#registerButton");
+const registerForm = document.querySelector("#registerForm");
+const registerUsernameInput = document.querySelector("#registerUsernameInput");
+const registerPasswordInput = document.querySelector("#registerPasswordInput");
+const showRegisterButton = document.querySelector("#showRegisterButton");
+const showLoginButton = document.querySelector("#showLoginButton");
 const loginMessage = document.querySelector("#loginMessage");
 const accountName = document.querySelector("#accountName");
 
@@ -24,8 +29,21 @@ let state = null;
 function showLogin(message = "") {
   appShell.hidden = true;
   loginPanel.hidden = false;
+  loginForm.hidden = false;
+  registerForm.hidden = true;
+  authTitle.textContent = "登录";
   loginMessage.textContent = message;
   usernameInput.focus();
+}
+
+function showRegister(message = "") {
+  appShell.hidden = true;
+  loginPanel.hidden = false;
+  loginForm.hidden = true;
+  registerForm.hidden = false;
+  authTitle.textContent = "注册";
+  loginMessage.textContent = message;
+  registerUsernameInput.focus();
 }
 
 function showApp() {
@@ -116,15 +134,17 @@ async function loadSession() {
   showLogin();
 }
 
-async function submitAuth(url) {
-  const username = usernameInput.value.trim();
-  const password = passwordInput.value;
+async function submitAuth(url, usernameField, passwordField) {
+  const username = usernameField.value.trim();
+  const password = passwordField.value;
   if (!username) {
-    showLogin("请输入用户名。");
+    loginMessage.textContent = "请输入用户名。";
+    usernameField.focus();
     return;
   }
   if (!password) {
-    showLogin("请输入密码。");
+    loginMessage.textContent = "请输入密码。";
+    passwordField.focus();
     return;
   }
 
@@ -133,7 +153,7 @@ async function submitAuth(url) {
       method: "POST",
       body: JSON.stringify({ username, password }),
     });
-    passwordInput.value = "";
+    passwordField.value = "";
     await loadState();
   } catch (error) {
     console.error(error);
@@ -143,11 +163,20 @@ async function submitAuth(url) {
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await submitAuth("/api/login");
+  await submitAuth("/api/login", usernameInput, passwordInput);
 });
 
-registerButton.addEventListener("click", async () => {
-  await submitAuth("/api/register");
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await submitAuth("/api/register", registerUsernameInput, registerPasswordInput);
+});
+
+showRegisterButton.addEventListener("click", () => {
+  showRegister();
+});
+
+showLoginButton.addEventListener("click", () => {
+  showLogin();
 });
 
 logoutButton.addEventListener("click", async () => {

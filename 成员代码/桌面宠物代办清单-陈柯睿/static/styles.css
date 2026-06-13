@@ -344,12 +344,6 @@ h2 {
   margin-top: 22px;
 }
 
-.auth-actions {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr 1fr;
-}
-
 .login-message {
   min-height: 1.5em;
   margin-top: 14px;
@@ -392,6 +386,13 @@ button {
 .login-form .ghost-button {
   color: var(--text);
   background: rgba(255, 255, 255, 0.64);
+  box-shadow: none;
+}
+
+.login-form .text-button {
+  padding: 4px 0 0;
+  color: var(--muted);
+  background: transparent;
   box-shadow: none;
 }
 
@@ -511,15 +512,9 @@ button:hover {
   .pet-header,
   .todo-top,
   .footer-bar,
-  .header-actions,
-  .auth-actions {
+  .header-actions {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .auth-actions {
-    display: grid;
-    grid-template-columns: 1fr;
   }
 
   .counter {
