@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import functools
 import hashlib
 import hmac
@@ -212,14 +213,14 @@ def user_state_file(user_id: str) -> Path:
     return USER_STATES_DIR / f"{user_id}.json"
 
 
+def create_default_state() -> dict:
+    return copy.deepcopy(DEFAULT_STATE)
+
+
 def load_state(user_id: str) -> dict:
     state_file = user_state_file(user_id)
     if not state_file.exists():
-        return {
-            "todos": [],
-            "completed_total": DEFAULT_STATE["completed_total"],
-            "growth": DEFAULT_STATE["growth"],
-        }
+        return create_default_state()
 
     with state_file.open("r", encoding="utf-8") as file:
         raw = json.load(file)

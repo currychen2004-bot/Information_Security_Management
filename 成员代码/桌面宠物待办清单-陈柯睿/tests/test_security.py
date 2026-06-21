@@ -1,10 +1,12 @@
 import importlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 pet_app = importlib.import_module("app")
 
 
@@ -87,20 +89,38 @@ def test_todos_are_isolated_between_users(tmp_path, monkeypatch):
     monkeypatch.setattr(pet_app, "USER_STATES_DIR", data_dir / "user-states")
     pet_app.app.config.update(TESTING=True, SECRET_KEY="test-secret")
 
-    alice_client = pet_app.app.test_client()
-    bob_client = pet_app.app.test_client()
+    test_client = pet_app.app.test_client()
 
-    assert register(alice_client, "alice").status_code == 201
-    assert alice_client.post("/api/todos", json={"text": "Alice private task"}).status_code == 201
+    assert register(test_client, "alice").status_code == 201
+    assert test_client.post("/api/todos", json={"text": "Alice private task"}).status_code == 201
+    assert test_client.post("/api/logout", json={}).status_code == 200
 
-    assert register(bob_client, "bob").status_code == 201
-    bob_state = bob_client.get("/api/state")
-    alice_state = alice_client.get("/api/state")
+    assert register(test_client, "bob").status_code == 201
+    bob_state = test_client.get("/api/state")
 
     assert bob_state.status_code == 200
     assert bob_state.get_json()["todos"] == []
+
+    assert test_client.post("/api/todos", json={"text": "Bob private task"}).status_code == 201
+    bob_state_after_create = test_client.get("/api/state")
+    assert [todo["text"] for todo in bob_state_after_create.get_json()["todos"]] == ["Bob private task"]
+
+    assert test_client.post("/api/logout", json={}).status_code == 200
+    assert login(test_client, "alice").status_code == 200
+    alice_state = test_client.get("/api/state")
+
     assert alice_state.status_code == 200
-    assert alice_state.get_json()["todos"][0]["text"] == "Alice private task"
+    assert [todo["text"] for todo in alice_state.get_json()["todos"]] == ["Alice private task"]
+
+
+def test_default_state_factory_returns_independent_mutables():
+    first_state = pet_app.create_default_state()
+    second_state = pet_app.create_default_state()
+
+    first_state["todos"].append({"id": "one", "text": "private", "done": False})
+
+    assert second_state["todos"] == []
+    assert first_state["todos"] is not second_state["todos"]
 
 
 def test_login_required_account_summary_interface(client):
