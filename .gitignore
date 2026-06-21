@@ -1,6 +1,7 @@
 .vscode/
 .DS_Store
 __pycache__/
+.pytest_cache/
 *.pyc
 .venv/
 .env
@@ -13,3 +14,6 @@ instance/
 成员代码/桌面宠物代办清单-陈柯睿/data/*.local.json
 成员代码/桌面宠物代办清单-陈柯睿/data/users.json
 成员代码/桌面宠物代办清单-陈柯睿/data/user-states/
+成员代码/桌面宠物待办清单-陈柯睿/data/*.local.json
+成员代码/桌面宠物待办清单-陈柯睿/data/users.json
+成员代码/桌面宠物待办清单-陈柯睿/data/user-states/
